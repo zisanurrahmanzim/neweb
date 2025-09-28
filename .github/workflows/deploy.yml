@@ -30,8 +30,10 @@ jobs:
           npm list
       
       - name: Build
-        run: npm run build --verbose
-      
+        run: |
+          npm run build --verbose
+          ls -la dist || exit 1
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
