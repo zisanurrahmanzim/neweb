@@ -1,85 +1,299 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { TrendingUp, TrendingDown, Users, FileText, Clock, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export function Dashboard() {
-  const kpiData = [
-    {
-      title: 'Total Accounts',
-      value: '12,458',
-      change: '+12.3%',
-      trend: 'up',
-      icon: Users,
-      gradient: 'from-blue-500 to-blue-600',
-    },
-    {
-      title: 'Total Outstanding',
-      value: '৳24,800,000',
-      change: '-3.2%',
-      trend: 'down',
-      icon: DollarSign,
-      gradient: 'from-purple-500 to-purple-600',
-    },
-    {
-      title: 'Total Overdue',
-      value: '৳8,200,000',
-      change: '+5.7%',
-      trend: 'up',
-      icon: AlertTriangle,
-      gradient: 'from-orange-500 to-red-500',
-    },
-    {
-      title: 'Total Collected',
-      value: '৳15,600,000',
-      change: '+18.4%',
-      trend: 'up',
-      icon: CheckCircle,
-      gradient: 'from-green-500 to-green-600',
-    },
-    {
-      title: 'Expired Files',
-      value: '1,243',
-      change: '+8.1%',
-      trend: 'up',
-      icon: Clock,
-      gradient: 'from-red-500 to-pink-500',
-    },
-    {
-      title: 'Active Files',
-      value: '8,915',
-      change: '-2.1%',
-      trend: 'down',
-      icon: FileText,
-      gradient: 'from-teal-500 to-teal-600',
-    },
-  ];
+  const [bankFilesData, setBankFilesData] = useState<any[]>([]);
+  const [collectionData, setCollectionData] = useState<any[]>([]);
+  
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    // Load bank files data
+    const savedBankFiles = localStorage.getItem('bankFiles');
+    if (savedBankFiles) {
+      try {
+        const parsedFiles = JSON.parse(savedBankFiles);
+        setBankFilesData(parsedFiles);
+      } catch (error) {
+        console.error('Error parsing bank files data:', error);
+        setBankFilesData([]);
+      }
+    }
+    
+    // Load collection data
+    const savedCollections = localStorage.getItem('collectionData');
+    if (savedCollections) {
+      try {
+        const parsedCollections = JSON.parse(savedCollections);
+        setCollectionData(parsedCollections);
+      } catch (error) {
+        console.error('Error parsing collection data:', error);
+        setCollectionData([]);
+      }
+    }
+  }, []);
 
-  const collectionsData = [
-    { month: 'Jan', collections: 1200000, target: 1500000 },
-    { month: 'Feb', collections: 1800000, target: 1500000 },
-    { month: 'Mar', collections: 1400000, target: 1500000 },
-    { month: 'Apr', collections: 2100000, target: 1500000 },
-    { month: 'May', collections: 1900000, target: 1500000 },
-    { month: 'Jun', collections: 2300000, target: 1500000 },
-  ];
+  // Listen for localStorage changes to update data in real-time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'bankFiles' && e.newValue) {
+        try {
+          const parsedFiles = JSON.parse(e.newValue);
+          setBankFilesData(parsedFiles);
+        } catch (error) {
+          console.error('Error parsing bank files data from storage event:', error);
+        }
+      } else if (e.key === 'collectionData' && e.newValue) {
+        try {
+          const parsedCollections = JSON.parse(e.newValue);
+          setCollectionData(parsedCollections);
+        } catch (error) {
+          console.error('Error parsing collection data from storage event:', error);
+        }
+      }
+    };
 
-  const agentPerformanceData = [
-    { name: 'Priya Singh', collections: 485000, files: 145, target: 500000 },
-    { name: 'Ravi Gupta', collections: 425000, files: 102, target: 400000 },
-    { name: 'Amit Sharma', collections: 398000, files: 89, target: 400000 },
-    { name: 'Raj Kumar', collections: 365000, files: 120, target: 450000 },
-    { name: 'Sneha Patel', collections: 312000, files: 95, target: 350000 },
-  ];
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
-  const bankDistribution = [
-    { name: 'DBBL Credit Card', value: 35, color: '#3B82F6' },
-    { name: 'DBBL Write-Off', value: 25, color: '#8B5CF6' },  
-    { name: 'One Bank Credit', value: 20, color: '#10B981' },
-    { name: 'DBBL Loan Branch', value: 15, color: '#F59E0B' },
-    { name: 'One Bank Loan', value: 5, color: '#EF4444' },
-  ];
+  // Calculate real KPI data based on actual data
+  const calculateKPIs = () => {
+    console.log('Calculating KPIs with data:');
+    console.log('Bank Files Data:', bankFilesData);
+    console.log('Collection Data:', collectionData);
+    
+    // Total Accounts (files)
+    const totalAccounts = bankFilesData.length;
+    
+    // Total Outstanding (sum of all outstanding amounts)
+    const totalOutstanding = bankFilesData.reduce((sum, file) => sum + (file.outstanding || 0), 0);
+    
+    // Total Overdue (using a simple calculation - files with status 'unassigned' or overdue)
+    const totalOverdue = bankFilesData.reduce((sum, file) => {
+      // For simplicity, we'll consider unassigned files as overdue
+      if (file.status === 'unassigned') {
+        return sum + (file.outstanding || 0);
+      }
+      return sum;
+    }, 0);
+    
+    // Total Collected (sum of all collections)
+    const totalCollected = collectionData
+      .filter(collection => collection.status === 'approved')
+      .reduce((sum, collection) => sum + (collection.amountCollected || 0), 0);
+    
+    // Expired Files (files with expired status)
+    const expiredFiles = bankFilesData.filter(file => {
+      if (file.expiryDate) {
+        const expiryDate = new Date(file.expiryDate);
+        const today = new Date();
+        return expiryDate < today;
+      }
+      return false;
+    }).length;
+    
+    // Active Files (files that are not expired)
+    const activeFiles = bankFilesData.length - expiredFiles;
+    
+    console.log('Calculated KPIs:', {
+      totalAccounts,
+      totalOutstanding,
+      totalOverdue,
+      totalCollected,
+      expiredFiles,
+      activeFiles
+    });
+    
+    return {
+      totalAccounts,
+      totalOutstanding,
+      totalOverdue,
+      totalCollected,
+      expiredFiles,
+      activeFiles
+    };
+  };
+
+  const kpiData = () => {
+    const kpis = calculateKPIs();
+    
+    return [
+      {
+        title: 'Total Accounts',
+        value: kpis.totalAccounts.toLocaleString(),
+        change: '+0%',
+        trend: 'up',
+        icon: Users,
+        gradient: 'from-blue-500 to-blue-600',
+      },
+      {
+        title: 'Total Outstanding',
+        value: `৳${kpis.totalOutstanding.toLocaleString()}`,
+        change: '+0%',
+        trend: 'up',
+        icon: DollarSign,
+        gradient: 'from-purple-500 to-purple-600',
+      },
+      {
+        title: 'Total Overdue',
+        value: `৳${kpis.totalOverdue.toLocaleString()}`,
+        change: '+0%',
+        trend: 'up',
+        icon: AlertTriangle,
+        gradient: 'from-orange-500 to-red-500',
+      },
+      {
+        title: 'Total Collected',
+        value: `৳${kpis.totalCollected.toLocaleString()}`,
+        change: '+0%',
+        trend: 'up',
+        icon: CheckCircle,
+        gradient: 'from-green-500 to-green-600',
+      },
+      {
+        title: 'Expired Files',
+        value: kpis.expiredFiles.toLocaleString(),
+        change: '+0%',
+        trend: 'up',
+        icon: Clock,
+        gradient: 'from-red-500 to-pink-500',
+      },
+      {
+        title: 'Active Files',
+        value: kpis.activeFiles.toLocaleString(),
+        change: '+0%',
+        trend: 'up',
+        icon: FileText,
+        gradient: 'from-teal-500 to-teal-600',
+      },
+    ];
+  };
+
+  // Calculate collections data for the chart
+  const collectionsData = () => {
+    console.log('Calculating collections data with:', collectionData);
+    
+    // Initialize with last 6 months of data
+    const monthlyCollections: Record<string, { collections: number; target: number }> = {};
+    const monthlyTarget = 1500000;
+    
+    // Generate last 6 months
+    const currentDate = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+      monthlyCollections[monthKey] = { collections: 0, target: monthlyTarget };
+    }
+    
+    // Add actual collection data
+    collectionData.forEach(collection => {
+      if (collection.status === 'approved' && collection.date) {
+        try {
+          const date = new Date(collection.date);
+          if (!isNaN(date.getTime())) { // Check if date is valid
+            const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+            
+            if (monthlyCollections[monthKey]) {
+              monthlyCollections[monthKey].collections += collection.amountCollected || 0;
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing collection date:', collection.date, error);
+        }
+      }
+    });
+    
+    // Convert to array format and sort by date
+    const chartData = Object.entries(monthlyCollections)
+      .map(([month, data]) => ({
+        month,
+        collections: data.collections,
+        target: data.target
+      }))
+      .sort((a, b) => {
+        const [aMonth, aYear] = a.month.split(' ');
+        const [bMonth, bYear] = b.month.split(' ');
+        
+        if (aYear !== bYear) {
+          return parseInt(aYear) - parseInt(bYear);
+        }
+        
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        return months.indexOf(aMonth) - months.indexOf(bMonth);
+      });
+    
+    console.log('Collections Chart Data:', chartData); // Debug log
+    return chartData;
+  };
+
+  // Calculate agent performance data
+  const agentPerformanceData = () => {
+    // Group collections by agent
+    const agentCollections: Record<string, { collections: number; files: number; target: number }> = {};
+    
+    collectionData.forEach(collection => {
+      if (collection.status === 'approved') {
+        const agent = collection.agent || 'Unknown Agent';
+        
+        if (!agentCollections[agent]) {
+          agentCollections[agent] = { collections: 0, files: 0, target: 400000 };
+        }
+        
+        agentCollections[agent].collections += collection.amountCollected || 0;
+        agentCollections[agent].files += 1;
+      }
+    });
+    
+    // Convert to array format for the chart
+    return Object.entries(agentCollections).map(([name, data]) => ({
+      name,
+      collections: data.collections,
+      files: data.files,
+      target: data.target
+    }));
+  };
+
+  // Calculate bank distribution
+  const bankDistribution = () => {
+    const bankCounts: Record<string, number> = {};
+    
+    bankFilesData.forEach(file => {
+      const bankType = `${file.bank} ${file.productType}`;
+      bankCounts[bankType] = (bankCounts[bankType] || 0) + 1;
+    });
+    
+    // Convert to percentage
+    const totalFiles = bankFilesData.length;
+    const distribution = Object.entries(bankCounts).map(([name, count]) => {
+      const percentage = totalFiles > 0 ? Math.round((count / totalFiles) * 100) : 0;
+      return {
+        name,
+        value: percentage,
+        color: getColorForBank(name)
+      };
+    });
+    
+    return distribution;
+  };
+
+  // Helper function to assign colors to banks
+  const getColorForBank = (bankName: string) => {
+    const colors = {
+      'DBBL Credit Card': '#3B82F6',
+      'DBBL Write-Off': '#8B5CF6',
+      'DBBL Agent Banking': '#06B6D4',
+      'DBBL Loan Branch': '#F59E0B',
+      'One Bank Credit Card': '#10B981',
+      'One Bank Personal Loan': '#EF4444'
+    };
+    
+    return colors[bankName as keyof typeof colors] || '#6B7280';
+  };
 
   return (
     <div className="space-y-6">
@@ -117,7 +331,7 @@ export function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {kpiData.map((kpi, index) => {
+        {kpiData().map((kpi, index) => {
           const Icon = kpi.icon;
           const TrendIcon = kpi.trend === 'up' ? TrendingUp : TrendingDown;
           
@@ -158,71 +372,83 @@ export function Dashboard() {
         <Card className="border-0 shadow-lg">
           <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 border-b border-gray-100">
             <CardTitle className="text-lg font-semibold text-gray-900">Collections Trend</CardTitle>
-            <p className="text-sm text-gray-600">Monthly collections vs target</p>
+            <p className="text-sm text-gray-600">Monthly collections vs target (Last 6 months)</p>
           </CardHeader>
           <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={collectionsData}>
-                <defs>
-                  <linearGradient id="colorCollections" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#6B7280" 
-                  fontSize={12}
-                />
-                <YAxis 
-                  stroke="#6B7280"
-                  tickFormatter={(value) => `৳${(value/1000000).toFixed(1)}M`}
-                  fontSize={12}
-                />
-                <Tooltip 
-                  formatter={(value, name) => [
-                    `৳${value.toLocaleString()}`, 
-                    name === 'collections' ? 'Collections' : 'Target'
-                  ]}
-                  labelStyle={{ color: '#374151' }}
-                  contentStyle={{ 
-                    backgroundColor: '#F9FAFB', 
-                    border: '1px solid #E5E7EB',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Legend 
-                  wrapperStyle={{ paddingTop: '15px' }}
-                  formatter={(value) => {
-                    return value === 'collections' ? 'Collections' : 'Target';
-                  }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="target" 
-                  stroke="#EF4444" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  fillOpacity={0.1} 
-                  fill="url(#colorTarget)"
-                  name="Target"
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="collections" 
-                  stroke="#3B82F6" 
-                  strokeWidth={3}
-                  fillOpacity={1} 
-                  fill="url(#colorCollections)"
-                  name="Collections"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {collectionsData().length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={collectionsData()} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCollections" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis 
+                    dataKey="month" 
+                    stroke="#6B7280" 
+                    fontSize={12}
+                    tick={{ fill: '#6B7280' }}
+                  />
+                  <YAxis 
+                    stroke="#6B7280"
+                    tickFormatter={(value) => `৳${(value/1000000).toFixed(1)}M`}
+                    fontSize={12}
+                    tick={{ fill: '#6B7280' }}
+                  />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      `৳${Number(value).toLocaleString()}`, 
+                      name === 'collections' ? 'Collections' : 'Target'
+                    ]}
+                    labelStyle={{ color: '#374151' }}
+                    contentStyle={{ 
+                      backgroundColor: '#F9FAFB', 
+                      border: '1px solid #E5E7EB',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ paddingTop: '15px' }}
+                    formatter={(value) => {
+                      return value === 'collections' ? 'Collections' : 'Target';
+                    }}
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="target" 
+                    stroke="#EF4444" 
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    fillOpacity={0.1} 
+                    fill="url(#colorTarget)"
+                    name="target"
+                  />
+                  <Area 
+                    type="monotone" 
+                    dataKey="collections" 
+                    stroke="#3B82F6" 
+                    strokeWidth={3}
+                    fillOpacity={1} 
+                    fill="url(#colorCollections)"
+                    name="collections"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-gray-500">
+                <div className="text-center">
+                  <TrendingUp className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-lg font-medium">No Collection Data</p>
+                  <p className="text-sm">Start adding collections to see the trend chart</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -234,7 +460,7 @@ export function Dashboard() {
           </CardHeader>
           <CardContent className="p-6">
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={agentPerformanceData}>
+              <BarChart data={agentPerformanceData()}>
                 <defs>
                   <linearGradient id="collectionsGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10B981" stopOpacity={0.9}/>
@@ -312,7 +538,7 @@ export function Dashboard() {
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
-                  data={bankDistribution}
+                  data={bankDistribution()}
                   cx="50%"
                   cy="50%"
                   innerRadius={60}
@@ -320,7 +546,7 @@ export function Dashboard() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {bankDistribution.map((entry, index) => (
+                  {bankDistribution().map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -329,7 +555,7 @@ export function Dashboard() {
             </ResponsiveContainer>
             
             <div className="space-y-3">
-              {bankDistribution.map((item, index) => (
+              {bankDistribution().map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                   <div className="flex items-center gap-3">
                     <div 

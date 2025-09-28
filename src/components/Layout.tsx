@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Menu, Bell, User, LogOut, Shield } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Menu, Bell, User, LogOut, Shield, CheckCheck, Eye } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
@@ -17,6 +17,89 @@ interface LayoutProps {
 export function Layout({ children, currentPage, onPageChange, onSearch }: LayoutProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+
+  // Load notifications from localStorage on component mount
+  useEffect(() => {
+    const savedNotifications = localStorage.getItem('notifications');
+    if (savedNotifications) {
+      try {
+        const parsedNotifications = JSON.parse(savedNotifications);
+        setNotifications(parsedNotifications);
+      } catch (error) {
+        console.error('Error parsing saved notifications:', error);
+        // Initialize with default notifications if parsing fails
+        setNotifications([
+          {
+            id: 1,
+            title: 'New Collection Submitted',
+            message: 'Priya Singh submitted a new collection report for review',
+            time: '2 hours ago',
+            type: 'info',
+            read: false,
+            color: 'blue'
+          },
+          {
+            id: 2,
+            title: 'File Expiry Alert',
+            message: '5 files assigned to Priya Singh will expire in 2 days',
+            time: '1 hour ago',
+            type: 'warning',
+            read: false,
+            color: 'orange'
+          },
+          {
+            id: 3,
+            title: 'Monthly Target Achieved',
+            message: 'Amit Sharma has achieved 105% of monthly collection target',
+            time: '3 hours ago',
+            type: 'success',
+            read: false,
+            color: 'green'
+          }
+        ]);
+      }
+    } else {
+      // Initialize with default notifications if none exist in localStorage
+      const defaultNotifications = [
+        {
+          id: 1,
+          title: 'New Collection Submitted',
+          message: 'Priya Singh submitted a new collection report for review',
+          time: '2 hours ago',
+          type: 'info',
+          read: false,
+          color: 'blue'
+        },
+        {
+          id: 2,
+          title: 'File Expiry Alert',
+          message: '5 files assigned to Priya Singh will expire in 2 days',
+          time: '1 hour ago',
+          type: 'warning',
+          read: false,
+          color: 'orange'
+        },
+        {
+          id: 3,
+          title: 'Monthly Target Achieved',
+          message: 'Amit Sharma has achieved 105% of monthly collection target',
+          time: '3 hours ago',
+          type: 'success',
+          read: false,
+          color: 'green'
+        }
+      ];
+      setNotifications(defaultNotifications);
+      localStorage.setItem('notifications', JSON.stringify(defaultNotifications));
+    }
+  }, []);
+
+  // Save notifications to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
   const { user, logout } = useAuth();
   const isAdmin = useIsAdmin();
 
@@ -27,6 +110,48 @@ export function Layout({ children, currentPage, onPageChange, onSearch }: Layout
     }
   };
 
+  // Notification handlers
+  const handleNotificationClick = (notificationId: number) => {
+    setNotifications(prev => 
+      prev.map(notif => 
+        notif.id === notificationId 
+          ? { ...notif, read: true }
+          : notif
+      )
+    );
+    
+    // You can add specific actions based on notification type
+    const notification = notifications.find(n => n.id === notificationId);
+    if (notification) {
+      switch (notification.type) {
+        case 'info':
+          onPageChange('collection-tracker');
+          break;
+        case 'warning':
+          onPageChange('expiry-tracker');
+          break;
+        case 'success':
+          onPageChange('agent-performance');
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(notif => ({ ...notif, read: true }))
+    );
+  };
+
+  const handleViewAllNotifications = () => {
+    // Navigate to notifications page
+    onPageChange('notifications');
+  };
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const adminNavigationItems = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'agent-performance', label: 'Agent Performance', icon: '👥' },
@@ -35,6 +160,7 @@ export function Layout({ children, currentPage, onPageChange, onSearch }: Layout
     { id: 'bank-files', label: 'Bank Files', icon: '🏦' },
     { id: 'agent-details', label: 'Agent Details', icon: '👨‍💼' },
     { id: 'reports', label: 'Reports', icon: '📈' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
@@ -43,6 +169,7 @@ export function Layout({ children, currentPage, onPageChange, onSearch }: Layout
     { id: 'my-files', label: 'My Files', icon: '📋' },
     { id: 'my-collections', label: 'Collections', icon: '💰' },
     { id: 'my-performance', label: 'Performance', icon: '📈' },
+    { id: 'notifications', label: 'Notifications', icon: '🔔' },
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
@@ -77,13 +204,13 @@ export function Layout({ children, currentPage, onPageChange, onSearch }: Layout
               <button
                 key={item.id}
                 onClick={() => onPageChange(item.id)}
-                className={`w-full flex items-center px-3 py-2.5 rounded-xl transition-all duration-200 hover:bg-gray-100 group ${
+                className={`w-full flex items-center ${sidebarOpen ? 'px-3' : 'justify-center'} py-2.5 rounded-xl transition-all duration-200 hover:bg-gray-100 group ${
                   currentPage === item.id
                     ? 'bg-gradient-to-r from-blue-50 to-purple-50 text-blue-600 border border-blue-200'
                     : 'text-gray-700'
                 }`}
               >
-                <span className="text-lg mr-3">{item.icon}</span>
+                <span className={`text-lg ${sidebarOpen ? 'mr-3' : ''}`}>{item.icon}</span>
                 {sidebarOpen && (
                   <span className="font-medium text-sm">{item.label}</span>
                 )}
@@ -113,12 +240,99 @@ export function Layout({ children, currentPage, onPageChange, onSearch }: Layout
 
           {/* Right Section */}
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                3
-              </Badge>
-            </Button>
+            {/* Notification Center */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="relative hover:bg-gray-100">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-80" align="end" forceMount>
+                <DropdownMenuLabel className="font-semibold border-b pb-2">
+                  <div className="flex items-center justify-between">
+                    <span>Notifications</span>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <Badge variant="secondary" className="text-xs">{unreadCount} new</Badge>
+                      )}
+                      {unreadCount > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={handleMarkAllAsRead}
+                          className="h-6 px-2 text-xs hover:bg-gray-100"
+                          title="Mark all as read"
+                        >
+                          <CheckCheck className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+                
+                {/* Notification Items */}
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.length > 0 ? (
+                    notifications.map((notification) => (
+                      <DropdownMenuItem 
+                        key={notification.id}
+                        className={`flex-col items-start p-4 cursor-pointer transition-colors ${
+                          notification.read 
+                            ? 'hover:bg-gray-50 opacity-75' 
+                            : `hover:bg-${notification.color}-50`
+                        }`}
+                        onClick={() => handleNotificationClick(notification.id)}
+                      >
+                        <div className="flex items-start gap-3 w-full">
+                          <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
+                            notification.read 
+                              ? 'bg-gray-300' 
+                              : `bg-${notification.color}-500`
+                          }`}></div>
+                          <div className="flex-1">
+                            <h4 className={`font-medium text-sm ${
+                              notification.read ? 'text-gray-600' : 'text-gray-900'
+                            }`}>
+                              {notification.title}
+                            </h4>
+                            <p className={`text-xs mt-1 ${
+                              notification.read ? 'text-gray-500' : 'text-gray-600'
+                            }`}>
+                              {notification.message}
+                            </p>
+                            <span className="text-xs text-gray-500 mt-2 block">{notification.time}</span>
+                          </div>
+                          {!notification.read && (
+                            <div className={`w-2 h-2 bg-${notification.color}-500 rounded-full flex-shrink-0 mt-1`}></div>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))
+                  ) : (
+                    <div className="p-8 text-center text-gray-500">
+                      <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">No notifications</p>
+                    </div>
+                  )}
+                </div>
+                
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-center py-3 text-blue-600 hover:bg-blue-50 cursor-pointer"
+                  onClick={handleViewAllNotifications}
+                >
+                  <div className="flex items-center justify-center gap-2 w-full">
+                    <Eye className="h-4 w-4" />
+                    <span className="text-sm font-medium">View All Notifications</span>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             {/* User Menu */}
             <DropdownMenu>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
@@ -24,85 +24,147 @@ export function AgentDashboard() {
   const { user } = useAuth();
   const [selectedPeriod, setSelectedPeriod] = useState('month');
 
-  // Agent's personal data (in a real app, this would come from API)
-  const agentData = {
-    currentFiles: 145,
-    monthlyTarget: 500000,
-    currentCollections: 387500,
-    visitRate: 91,
-    collectionRate: 87,
-    totalClients: 89,
-    completedToday: 12,
-    pendingVisits: 23,
-    phoneCallsMade: 45,
-    performanceRating: 4.8,
-    ranking: 2,
-    totalAgents: 15
-  };
+  // State for agent data, tasks, and activities
+  const [agentData, setAgentData] = useState<any>(null);
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
+  const [upcomingTasks, setUpcomingTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentActivities = [
-    {
-      id: 1,
-      type: 'collection',
-      client: 'John Doe',
-      amount: 25000,
-      status: 'success',
-      time: '2 hours ago',
-      description: 'Partial payment collected'
-    },
-    {
-      id: 2,
-      type: 'visit',
-      client: 'Sarah Wilson',
-      status: 'completed',
-      time: '4 hours ago',
-      description: 'Field visit completed - No contact'
-    },
-    {
-      id: 3,
-      type: 'call',
-      client: 'Mike Johnson',
-      status: 'follow-up',
-      time: '6 hours ago',
-      description: 'Phone call - Promised payment next week'
-    },
-    {
-      id: 4,
-      type: 'collection',
-      client: 'Lisa Brown',
-      amount: 15000,
-      status: 'success',
-      time: '1 day ago',
-      description: 'Full settlement received'
-    }
-  ];
+  useEffect(() => {
+    setLoading(true);
+    // Get agent email
+    const agentEmail = user?.email;
 
-  const upcomingTasks = [
-    {
-      id: 1,
-      client: 'Robert Smith',
-      type: 'visit',
-      time: '10:00 AM',
-      address: '123 Main St, Downtown',
-      priority: 'high'
-    },
-    {
-      id: 2,
-      client: 'Emma Davis',
-      type: 'call',
-      time: '2:00 PM',
-      phone: '+91 9876543210',
-      priority: 'medium'
-    },
-    {
-      id: 3,
-      client: 'David Wilson',
-      type: 'visit',
-      time: '4:30 PM',
-      address: '456 Oak Ave, Suburb',
-      priority: 'low'
-    }
-  ];
+    // Get files from localStorage (BankFiles)
+    let files = [];
+    try {
+      const filesStr = localStorage.getItem('bankFiles');
+      if (filesStr) files = JSON.parse(filesStr);
+    } catch {}
+    // Count files assigned to this agent
+    const currentFiles = files.filter((f: any) => f.assignedAgent === user?.name).length;
+
+    // Get collections from localStorage (CollectionTracker)
+    let collections = [];
+    try {
+      const colStr = localStorage.getItem('collectionData');
+      if (colStr) collections = JSON.parse(colStr);
+    } catch {}
+    // Sum collections for this agent
+    const currentCollections = collections
+      .filter((c: any) => c.agentEmail === agentEmail && c.status === 'approved')
+      .reduce((sum: number, c: any) => sum + (c.amountCollected || 0), 0);
+
+    // Calculate monthly target (from localStorage or fallback)
+    let monthlyTarget = 500000;
+    try {
+      const targetsStr = localStorage.getItem('monthlyTargets');
+      if (targetsStr) {
+        const targets = JSON.parse(targetsStr);
+        // Try to find target for current month
+        const now = new Date();
+        const monthStr = now.toLocaleString('default', { month: 'short', year: 'numeric' });
+        const found = targets.find((t: any) => t.month === monthStr);
+        if (found) monthlyTarget = found.target;
+      }
+    } catch {}
+
+    // Fallbacks for other metrics
+    const agentDataObj = {
+      currentFiles,
+      monthlyTarget,
+      currentCollections,
+      visitRate: 91, // Placeholder
+      collectionRate: monthlyTarget ? Math.round((currentCollections / monthlyTarget) * 100) : 0,
+      totalClients: currentFiles, // Or another logic
+      completedToday: 12, // Placeholder
+      pendingVisits: 23, // Placeholder
+      phoneCallsMade: 45, // Placeholder
+      performanceRating: 4.8, // Placeholder
+      ranking: 2, // Placeholder
+      totalAgents: 15 // Placeholder
+    };
+    setAgentData(agentDataObj);
+
+    // Activities and tasks (keep as before)
+    let activities: any[] = [];
+    try {
+      const actStr = localStorage.getItem('agentActivities');
+      if (actStr) activities = JSON.parse(actStr);
+    } catch {}
+    let tasks: any[] = [];
+    try {
+      const tasksStr = localStorage.getItem('agentTasks');
+      if (tasksStr) tasks = JSON.parse(tasksStr);
+    } catch {}
+    setRecentActivities(
+      activities.length > 0 ? activities : [
+        {
+          id: 1,
+          type: 'collection',
+          client: 'John Doe',
+          amount: 25000,
+          status: 'success',
+          time: '2 hours ago',
+          description: 'Partial payment collected'
+        },
+        {
+          id: 2,
+          type: 'visit',
+          client: 'Sarah Wilson',
+          status: 'completed',
+          time: '4 hours ago',
+          description: 'Field visit completed - No contact'
+        },
+        {
+          id: 3,
+          type: 'call',
+          client: 'Mike Johnson',
+          status: 'follow-up',
+          time: '6 hours ago',
+          description: 'Phone call - Promised payment next week'
+        },
+        {
+          id: 4,
+          type: 'collection',
+          client: 'Lisa Brown',
+          amount: 15000,
+          status: 'success',
+          time: '1 day ago',
+          description: 'Full settlement received'
+        }
+      ]
+    );
+    setUpcomingTasks(
+      tasks.length > 0 ? tasks : [
+        {
+          id: 1,
+          client: 'Robert Smith',
+          type: 'visit',
+          time: '10:00 AM',
+          address: '123 Main St, Downtown',
+          priority: 'high'
+        },
+        {
+          id: 2,
+          client: 'Emma Davis',
+          type: 'call',
+          time: '2:00 PM',
+          phone: '+91 9876543210',
+          priority: 'medium'
+        },
+        {
+          id: 3,
+          client: 'David Wilson',
+          type: 'visit',
+          time: '4:30 PM',
+          address: '456 Oak Ave, Suburb',
+          priority: 'low'
+        }
+      ]
+    );
+    setLoading(false);
+  }, [user]);
 
   const getActivityIcon = (type: string) => {
     switch (type) {
@@ -135,8 +197,15 @@ export function AgentDashboard() {
     }
   };
 
-  const completionPercentage = (agentData.currentCollections / agentData.monthlyTarget) * 100;
+  const completionPercentage = agentData ? (agentData.currentCollections / agentData.monthlyTarget) * 100 : 0;
 
+  if (loading || !agentData) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <span className="text-lg text-gray-600">Loading dashboard...</span>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       {/* Welcome Section */}

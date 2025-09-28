@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -8,7 +8,6 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Download, FileText, BarChart3, PieChart, TrendingUp, Calendar as CalendarIcon, Filter, FileSpreadsheet } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import * as XLSX from 'xlsx';
-// import { format } from 'date-fns';
 
 export function Reports() {
   const [selectedPeriod, setSelectedPeriod] = useState('this-month');
@@ -18,39 +17,35 @@ export function Reports() {
   const [reportType, setReportType] = useState('overview');
   const [dateRangeFilter, setDateRangeFilter] = useState<{from: Date | undefined, to: Date | undefined}>({ from: undefined, to: undefined });
   const [useCustomDateRange, setUseCustomDateRange] = useState(false);
+  const [bankFilesData, setBankFilesData] = useState<any[]>([]);
+  const [collectionData, setCollectionData] = useState<any[]>([]);
 
-  // Base mock data with dates
-  const baseRecoveryTrendData = [
-    { month: 'Jan', target: 1500000, achieved: 1200000, percentage: 80, bank: 'DBBL', fileType: 'credit-card', date: '2024-01-15' },
-    { month: 'Feb', target: 1500000, achieved: 1800000, percentage: 120, bank: 'One Bank', fileType: 'personal-loan', date: '2024-02-10' },
-    { month: 'Mar', target: 1500000, achieved: 1400000, percentage: 93, bank: 'DBBL', fileType: 'write-off', date: '2024-03-05' },
-    { month: 'Apr', target: 1500000, achieved: 2100000, percentage: 140, bank: 'One Bank', fileType: 'credit-card', date: '2024-04-12' },
-    { month: 'May', target: 1500000, achieved: 1900000, percentage: 127, bank: 'DBBL', fileType: 'personal-loan', date: '2024-05-20' },
-    { month: 'Jun', target: 1500000, achieved: 2300000, percentage: 153, bank: 'One Bank', fileType: 'write-off', date: '2024-06-18' },
-    { month: 'Jul', target: 1500000, achieved: 1950000, percentage: 130, bank: 'DBBL', fileType: 'credit-card', date: '2024-07-25' },
-    { month: 'Aug', target: 1600000, achieved: 2050000, percentage: 128, bank: 'One Bank', fileType: 'personal-loan', date: '2024-08-10' },
-    { month: 'Sep', target: 1600000, achieved: 1750000, percentage: 109, bank: 'DBBL', fileType: 'write-off', date: '2024-09-01' },
-  ];
-
-  const baseAgentContributionData = [
-    { name: 'Priya Singh', collections: 485000, percentage: 24.8, bank: 'DBBL', fileType: 'credit-card', date: '2024-07-15' },
-    { name: 'Ravi Gupta', collections: 425000, percentage: 21.7, bank: 'DBBL', fileType: 'write-off', date: '2024-07-20' },
-    { name: 'Raj Kumar', collections: 420000, percentage: 21.5, bank: 'One Bank', fileType: 'personal-loan', date: '2024-07-10' },
-    { name: 'Amit Sharma', collections: 380000, percentage: 19.4, bank: 'DBBL', fileType: 'credit-card', date: '2024-07-25' },
-    { name: 'Sneha Patel', collections: 365000, percentage: 18.6, bank: 'One Bank', fileType: 'credit-card', date: '2024-07-30' },
-  ];
-
-  const baseFileStatusData = [
-    { name: 'Active Files', count: 8915, color: '#10B981', bank: 'DBBL', fileType: 'credit-card', date: '2024-07-01' },
-    { name: 'Expired Files', count: 1243, color: '#EF4444', bank: 'One Bank', fileType: 'personal-loan', date: '2024-07-15' },
-    { name: 'Expiring Soon', count: 456, color: '#F59E0B', bank: 'DBBL', fileType: 'write-off', date: '2024-07-30' },
-    { name: 'Resolved Files', count: 2876, color: '#6B7280', bank: 'One Bank', fileType: 'credit-card', date: '2024-07-20' },
-  ];
-
-  const baseBankWiseData = [
-    { bank: 'DBBL', creditCard: 450000, writeOff: 380000, agentBanking: 320000, loanBranch: 280000, fileType: 'credit-card', date: '2024-07-15' },
-    { bank: 'One Bank', creditCard: 420000, personalLoan: 390000, other: 150000, fileType: 'personal-loan', date: '2024-07-20' },
-  ];
+  // Load data from localStorage on component mount
+  useEffect(() => {
+    // Load bank files data
+    const savedBankFiles = localStorage.getItem('bankFiles');
+    if (savedBankFiles) {
+      try {
+        const parsedFiles = JSON.parse(savedBankFiles);
+        setBankFilesData(parsedFiles);
+      } catch (error) {
+        console.error('Error parsing bank files data:', error);
+        setBankFilesData([]);
+      }
+    }
+    
+    // Load collection data
+    const savedCollections = localStorage.getItem('collectionData');
+    if (savedCollections) {
+      try {
+        const parsedCollections = JSON.parse(savedCollections);
+        setCollectionData(parsedCollections);
+      } catch (error) {
+        console.error('Error parsing collection data:', error);
+        setCollectionData([]);
+      }
+    }
+  }, []);
 
   // Filter functions
   const filterByBank = (data: any[], bankFilter: string) => {
@@ -104,6 +99,151 @@ export function Reports() {
     }));
   };
 
+  // Generate real data based on localStorage data
+  const generateRecoveryTrendData = () => {
+    // Group collections by month
+    const monthlyCollections: Record<string, number> = {};
+    const monthlyTarget = 1500000;
+    
+    collectionData.forEach(collection => {
+      if (collection.status === 'approved' && collection.date) {
+        try {
+          const date = new Date(collection.date);
+          if (!isNaN(date.getTime())) {
+            const monthKey = date.toLocaleString('default', { month: 'short', year: 'numeric' });
+            monthlyCollections[monthKey] = (monthlyCollections[monthKey] || 0) + (collection.amountCollected || 0);
+          }
+        } catch (error) {
+          console.error('Error parsing collection date:', collection.date, error);
+        }
+      }
+    });
+    
+    // Convert to array format
+    return Object.entries(monthlyCollections).map(([month, achieved]) => ({
+      month,
+      target: monthlyTarget,
+      achieved,
+      percentage: Math.round((achieved / monthlyTarget) * 100)
+    }));
+  };
+
+  const generateAgentContributionData = () => {
+    // Group collections by agent
+    const agentCollections: Record<string, { collections: number; count: number }> = {};
+    
+    collectionData.forEach(collection => {
+      if (collection.status === 'approved') {
+        const agent = collection.agent || 'Unknown Agent';
+        
+        if (!agentCollections[agent]) {
+          agentCollections[agent] = { collections: 0, count: 0 };
+        }
+        
+        agentCollections[agent].collections += collection.amountCollected || 0;
+        agentCollections[agent].count += 1;
+      }
+    });
+    
+    // Convert to array format and sort by collections
+    return Object.entries(agentCollections)
+      .map(([name, data]) => ({
+        name,
+        collections: data.collections,
+        percentage: Math.round((data.collections / 1000000) * 100) / 10, // Simplified percentage
+        count: data.count
+      }))
+      .sort((a, b) => b.collections - a.collections);
+  };
+
+  const generateFileStatusData = () => {
+    // Count files by status
+    const statusCounts: Record<string, { count: number; color: string }> = {
+      'Active Files': { count: 0, color: '#10B981' },
+      'Expired Files': { count: 0, color: '#EF4444' },
+      'Expiring Soon': { count: 0, color: '#F59E0B' },
+      'Resolved Files': { count: 0, color: '#6B7280' }
+    };
+    
+    const today = new Date();
+    
+    bankFilesData.forEach(file => {
+      if (file.expiryDate) {
+        const expiryDate = new Date(file.expiryDate);
+        const timeDiff = expiryDate.getTime() - today.getTime();
+        const daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+        
+        if (daysLeft < 0) {
+          statusCounts['Expired Files'].count += 1;
+        } else if (daysLeft <= 30) {
+          statusCounts['Expiring Soon'].count += 1;
+        } else {
+          statusCounts['Active Files'].count += 1;
+        }
+      } else {
+        statusCounts['Active Files'].count += 1;
+      }
+      
+      // For resolved files, we'll use a simple heuristic
+      if (file.status === 'resolved' || file.status === 'closed') {
+        statusCounts['Resolved Files'].count += 1;
+      }
+    });
+    
+    // Convert to array format
+    return Object.entries(statusCounts).map(([name, data]) => ({
+      name,
+      count: data.count,
+      color: data.color
+    }));
+  };
+
+  const generateBankWiseData = () => {
+    // Group files by bank and product type
+    const bankData: Record<string, any> = {};
+    
+    bankFilesData.forEach(file => {
+      const bank = file.bank || 'Unknown Bank';
+      const productType = file.productType || 'Unknown Type';
+      
+      if (!bankData[bank]) {
+        bankData[bank] = {
+          bank,
+          creditCard: 0,
+          personalLoan: 0,
+          writeOff: 0,
+          agentBanking: 0,
+          loanBranch: 0,
+          other: 0
+        };
+      }
+      
+      switch (productType.toLowerCase()) {
+        case 'credit card':
+          bankData[bank].creditCard += 1;
+          break;
+        case 'personal loan':
+          bankData[bank].personalLoan += 1;
+          break;
+        case 'write-off':
+          bankData[bank].writeOff += 1;
+          break;
+        case 'agent banking':
+          bankData[bank].agentBanking += 1;
+          break;
+        case 'loan branch':
+          bankData[bank].loanBranch += 1;
+          break;
+        default:
+          bankData[bank].other += 1;
+          break;
+      }
+    });
+    
+    // Convert to array format
+    return Object.values(bankData);
+  };
+
   // Apply filters to get filtered data
   const getFilteredData = (baseData: any[]) => {
     let filtered = baseData;
@@ -115,15 +255,15 @@ export function Reports() {
   };
 
   // Get filtered data
-  const recoveryTrendData = getFilteredData(baseRecoveryTrendData);
-  const agentContributionData = getFilteredData(baseAgentContributionData);
-  const fileStatusData = getFilteredData(baseFileStatusData);
-  const bankWiseData = getFilteredData(baseBankWiseData);
+  const recoveryTrendData = getFilteredData(generateRecoveryTrendData());
+  const agentContributionData = getFilteredData(generateAgentContributionData());
+  const fileStatusData = getFilteredData(generateFileStatusData());
+  const bankWiseData = getFilteredData(generateBankWiseData());
 
   // Calculate summary stats based on filtered data
   const calculateSummaryStats = () => {
     const totalRecovery = agentContributionData.reduce((sum, agent) => sum + (agent.collections || 0), 0);
-    const avgCollections = totalRecovery / agentContributionData.length;
+    const avgCollections = totalRecovery / Math.max(agentContributionData.length, 1);
     const targetSum = recoveryTrendData.reduce((sum, item) => sum + item.target, 0);
     const achievedSum = recoveryTrendData.reduce((sum, item) => sum + item.achieved, 0);
     const targetAchievement = targetSum > 0 ? (achievedSum / targetSum) * 100 : 0;

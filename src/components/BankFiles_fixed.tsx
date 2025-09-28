@@ -152,13 +152,7 @@ export function BankFiles() {
     const savedFiles = localStorage.getItem('bankFiles');
     
     if (savedFiles) {
-      try {
-        const parsedFiles = JSON.parse(savedFiles);
-        setAllFilesData(parsedFiles);
-      } catch (error) {
-        console.error('Error parsing bank files data:', error);
-        setAllFilesData([]);
-      }
+      setAllFilesData(JSON.parse(savedFiles));
     } else {
       const initialFiles = [
         // DBBL Credit Card Files
@@ -313,25 +307,6 @@ export function BankFiles() {
       localStorage.setItem('bankFiles', JSON.stringify(initialFiles));
     }
   }, []); // Empty dependency array to run only on mount
-
-  // Listen for localStorage changes to update data in real-time
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'bankFiles' && e.newValue) {
-        try {
-          const parsedFiles = JSON.parse(e.newValue);
-          setAllFilesData(parsedFiles);
-        } catch (error) {
-          console.error('Error parsing bank files data from storage event:', error);
-        }
-      }
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, []);
 
   // Update localStorage whenever allFilesData changes
   useEffect(() => {

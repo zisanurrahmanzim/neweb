@@ -1,0 +1,10 @@
+{
+  "tool_calls": [
+    {
+      "tool": "read_file",
+      "parameters": {
+        "file_path": "d:/Bank Recovery Web - Copy/src/components/CollectionTracker.tsx"
+      }
+    }
+  ]
+}

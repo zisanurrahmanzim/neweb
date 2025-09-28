@@ -1,117 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
-import { Search, AlertTriangle, Clock, CheckCircle, XCircle, Calendar, Filter } from 'lucide-react';
+import { Search, AlertTriangle, Clock, CheckCircle, XCircle, Calendar, Filter, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export function ExpiryTracker() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBank, setSelectedBank] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [selectedFileType, setSelectedFileType] = useState('all');
+  const [expiryData, setExpiryData] = useState([]);
 
-  const expiryData = [
-    {
-      id: 1,
-      bank: 'DBBL',
-      fileType: 'Credit Card',
-      fileNo: 'FL567890',
-      clientName: 'Rajesh Kumar Sharma',
-      clientId: 'CL001234',
-      agent: 'Priya Singh',
-      allegationDate: '2024-01-15',
-      expiryDate: '2024-12-15',
-      daysLeft: 45,
-      status: 'Active',
-      outstanding: 125000,
-      lastAction: '2024-07-15'
-    },
-    {
-      id: 2,
-      bank: 'One Bank',
-      fileType: 'Personal Loan',
-      fileNo: 'FL567891',
-      clientName: 'Meera Gupta',
-      clientId: 'CL001235',
-      agent: 'Raj Kumar',
-      allegationDate: '2024-02-10',
-      expiryDate: '2024-08-10',
-      daysLeft: -21, // Expired
-      status: 'Expired',
-      outstanding: 89000,
-      lastAction: '2024-07-20'
-    },
-    {
-      id: 3,
-      bank: 'DBBL',
-      fileType: 'Write-Off',
-      fileNo: 'FL567892',
-      clientName: 'Arjun Patel',
-      clientId: 'CL001236',
-      agent: 'Amit Sharma',
-      allegationDate: '2024-03-05',
-      expiryDate: '2024-09-05',
-      daysLeft: 5,
-      status: 'Expiring Soon',
-      outstanding: 67000,
-      lastAction: '2024-07-25'
-    },
-    {
-      id: 4,
-      bank: 'One Bank',
-      fileType: 'Credit Card',
-      fileNo: 'FL567893',
-      clientName: 'Kavya Singh',
-      clientId: 'CL001237',
-      agent: 'Sneha Patel',
-      allegationDate: '2024-01-20',
-      expiryDate: '2024-10-20',
-      daysLeft: 20,
-      status: 'Expiring Soon',
-      outstanding: 156000,
-      lastAction: '2024-07-28'
-    },
-    {
-      id: 5,
-      bank: 'DBBL',
-      fileType: 'Agent Banking',
-      fileNo: 'FL567894',
-      clientName: 'Suresh Reddy',
-      clientId: 'CL001238',
-      agent: 'Ravi Gupta',
-      allegationDate: '2024-04-12',
-      expiryDate: '2025-01-12',
-      daysLeft: 125,
-      status: 'Active',
-      outstanding: 78000,
-      lastAction: '2024-07-30'
-    },
-    {
-      id: 6,
-      bank: 'DBBL',
-      fileType: 'Loan Branch',
-      fileNo: 'FL567895',
-      clientName: 'Neha Agarwal',
-      clientId: 'CL001239',
-      agent: 'Priya Singh',
-      allegationDate: '2023-12-01',
-      expiryDate: '2024-06-01',
-      daysLeft: -59, // Expired
-      status: 'Expired',
-      outstanding: 234000,
-      lastAction: '2024-05-25'
-    }
-  ];
+  // Load data from Bank Files localStorage on component mount
+  useEffect(() => {
+    const loadBankFilesData = () => {
+      try {
+        const savedBankFiles = localStorage.getItem('bankFiles');
+        if (savedBankFiles) {
+          const bankFilesData = JSON.parse(savedBankFiles);
+          
+          // Transform Bank Files data to Expiry Tracker format
+          const transformedData = bankFilesData.map((file, index) => {
+            // Calculate days left until expiry
+            let daysLeft = 0;
+            let status = 'Active';
+            
+            if (file.expiryDate) {
+              const expiryDate = new Date(file.expiryDate);
+              const today = new Date();
+              const timeDiff = expiryDate.getTime() - today.getTime();
+              daysLeft = Math.ceil(timeDiff / (1000 * 3600 * 24));
+              
+              // Determine status based on days left
+              if (daysLeft < 0) {
+                status = 'Expired';
+              } else if (daysLeft <= 30) {
+                status = 'Expiring Soon';
+              } else {
+                status = 'Active';
+              }
+            }
+            
+            return {
+              id: index + 1,
+              bank: file.bank || '',
+              fileType: file.productType || '',
+              fileNo: file.fileNo || '',
+              clientName: file.clientName || '',
+              clientId: file.clientId || '',
+              agent: file.assignedAgent || file.agent || '',
+              allegationDate: file.allegationDate || '',
+              expiryDate: file.expiryDate || '',
+              daysLeft: daysLeft,
+              status: status,
+              outstanding: file.outstanding || 0,
+              lastAction: file.lastVisit || ''
+            };
+          });
+          
+          setExpiryData(transformedData);
+        } else {
+          // If no bank files data exists, show empty array
+          setExpiryData([]);
+        }
+      } catch (error) {
+        console.error('Error loading bank files data:', error);
+        // If there's an error, show empty array
+        setExpiryData([]);
+      }
+    };
+    
+    loadBankFilesData();
+    
+    // Listen for changes to localStorage
+    const handleStorageChange = (e) => {
+      if (e.key === 'bankFiles') {
+        loadBankFilesData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   const summaryStats = {
     total: expiryData.length,
     active: expiryData.filter(item => item.status === 'Active').length,
     expiringSoon: expiryData.filter(item => item.status === 'Expiring Soon').length,
     expired: expiryData.filter(item => item.status === 'Expired').length,
-    totalOutstanding: expiryData.reduce((sum, item) => sum + item.outstanding, 0)
+    totalOverdue: expiryData
+      .filter(item => item.status === 'Expired' || item.daysLeft < 0)
+      .reduce((sum, item) => sum + item.outstanding, 0)
   };
 
   const filteredData = expiryData.filter(item => {
@@ -124,6 +110,39 @@ export function ExpiryTracker() {
     
     return matchesSearch && matchesBank && matchesStatus && matchesFileType;
   });
+
+  // Export to Excel function
+  const exportToExcel = () => {
+    // Prepare data for export
+    const exportData = filteredData.map(item => ({
+      'File No': item.fileNo,
+      'Client Name': item.clientName,
+      'Client ID': item.clientId,
+      'Bank': item.bank,
+      'File Type': item.fileType,
+      'Agent': item.agent,
+      'Allegation Date': item.allegationDate,
+      'Expiry Date': item.expiryDate,
+      'Days Left': item.daysLeft,
+      'Status': item.status,
+      'Outstanding Amount': item.outstanding,
+      'Last Action': item.lastAction
+    }));
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Expiry Tracker');
+    
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `expiry-tracker-${date}.xlsx`;
+    
+    // Export to Excel file
+    XLSX.writeFile(workbook, filename);
+  };
 
   const getStatusBadge = (status: string, daysLeft: number) => {
     if (status === 'Expired' || daysLeft < 0) {
@@ -228,14 +247,14 @@ export function ExpiryTracker() {
               <div className="p-2 rounded-lg bg-purple-100">
                 <Calendar className="h-5 w-5 text-purple-600" />
               </div>
-              <h3 className="text-sm font-medium text-gray-600">Outstanding</h3>
+              <h3 className="text-sm font-medium text-gray-600">Total Overdue</h3>
             </div>
-            <span className="text-xl font-bold text-gray-900">৳{summaryStats.totalOutstanding.toLocaleString()}</span>
+            <span className="text-xl font-bold text-gray-900">৳{summaryStats.totalOverdue.toLocaleString()}</span>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters and Export */}
       <Card className="border-0 shadow-lg">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -284,6 +303,10 @@ export function ExpiryTracker() {
                 <SelectItem value="Expired">Expired</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={exportToExcel} className="flex items-center gap-2">
+              <Download className="h-4 w-4" />
+              Export Excel
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -362,6 +385,17 @@ export function ExpiryTracker() {
                 ))}
               </TableBody>
             </Table>
+            
+            {/* Show message when no data is available */}
+            {expiryData.length === 0 && (
+              <div className="text-center py-10">
+                <Calendar className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No files found</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  No files are currently available in Bank Files. Add files to see them here.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

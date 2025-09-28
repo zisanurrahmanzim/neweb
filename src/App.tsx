@@ -10,6 +10,7 @@ import { BankFiles } from './components/BankFiles';
 import { AgentDetails } from './components/AgentDetails';
 import { Reports } from './components/Reports';
 import { Settings } from './components/Settings';
+import { Notifications } from './components/Notifications';
 import { Login } from './components/Login';
 import { AuthProvider, useAuth, useIsAdmin } from './contexts/AuthContext';
 
@@ -79,6 +80,8 @@ function AppContent() {
           return <AgentDetails />;
         case 'reports':
           return <Reports />;
+        case 'notifications':
+          return <Notifications />;
         case 'settings':
           return <Settings />;
         default:
@@ -96,6 +99,8 @@ function AppContent() {
         return <CollectionTracker />; // Filtered for agent's files
       case 'my-performance':
         return <AgentPerformance />; // Agent's own performance only
+      case 'notifications':
+        return <Notifications />;
       case 'settings':
         return <Settings />;
       default:
